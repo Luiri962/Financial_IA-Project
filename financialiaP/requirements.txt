@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+keras
+joblib
+pydantic
+asyncpg
+databases
+psycopg2-binary
+tensorflow
+numpy
+pandas
+scikit-learn
+matplotlib
+yfinance
+# Add any other dependencies you need
