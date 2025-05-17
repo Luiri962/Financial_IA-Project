@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financialia</title>
+    <link rel="stylesheet" href="/static/style.css?v=2">
+
+</head>
+<body >
+    <div class="overlay"></div>
+    <div class="container">
+        <h1>📈 Predicción de los Retornos de Acciones del S&P 500</h1>
+
+        <form action="/predict" method="post" class="prediction-form">
+            <label for="target_variable">Variable a predecir</label>
+            <input type="text" name="target_variable" id="target_variable" placeholder="Ej. ^GSPC" required>
+
+            <label for="periods">Número de periodos</label>
+            <input type="number" name="periods" id="periods" placeholder="Ej. 7" required>
+
+            <button type="submit">Predecir</button>
+        </form>
+
+        {% if predictions %}
+            <h2>📊 Resultados</h2> 
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Variable</th>
+                        <th>Retorno</th>
+                        <th>Precio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prediction in predictions %}
+                        <tr>
+                            <td>{{ prediction.date }}</td>
+                            <td>{{ prediction.target_variable.split(' ')[0] }}</td>
+                            <td>{{ prediction.return }}</td>
+                            <td>{{ prediction.price }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+</body>
+</html>
