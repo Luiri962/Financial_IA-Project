@@ -14,4 +14,5 @@ matplotlib
 yfinance
 jinja2
 requests
+nltk
 python-multipart 

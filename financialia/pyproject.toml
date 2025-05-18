@@ -19,7 +19,9 @@ dependencies = [
     "sqlalchemy (>=2.0.40,<3.0.0)",
     "jinja2 (>=3.1.6,<4.0.0)",
     "requests (>=2.32.3,<3.0.0)",
-    "python-multipart (>=0.0.20,<0.0.21)"
+    "python-multipart (>=0.0.20,<0.0.21)",
+    "nltk (>=3.9.1,<4.0.0)",
+    "openpyxl (>=3.1.5,<4.0.0)"
 ]
 
 

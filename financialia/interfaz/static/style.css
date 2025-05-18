@@ -280,7 +280,4 @@ button.loading {
   font-weight: 600;
 }
 
-/* For when you want to apply conditional formatting to returns */
-/* Add these classes in your Jinja2 template:
-{% if prediction.return|float > 0 %}positive{% else %}negative{% endif %}
-*/
+

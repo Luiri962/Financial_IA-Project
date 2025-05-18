@@ -1,16 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financialia</title>
     <link rel="stylesheet" href="/static/style.css?v=2">
-
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
-<body >
+<body>
     <div class="overlay"></div>
     <div class="container">
         <h1>📈 Predicción de los Retornos de Acciones del S&P 500</h1>
+
+        <div class="chat-container">
+            <div id="chat-box" style="height: 300px; overflow-y: scroll;">
+                <!-- Las respuestas del chatbot aparecerán aquí -->
+            </div>
+            <input type="text" id="user-input" placeholder="Escribe tu pregunta...">
+            <button onclick="sendMessage()">Enviar</button>
+        </div>
 
         <form action="/predict" method="post" class="prediction-form">
             <label for="target_variable">Variable a predecir</label>
@@ -47,5 +55,68 @@
         {% endif %}
     </div>
 
+    <script>
+    function sendMessage() {
+    var userInput = $('#user-input').val();
+    
+    // Asegúrate de que el input no esté vacío
+    if (userInput.trim() === '') return;
+    
+    // Mostrar el mensaje del usuario en el chat
+    $('#chat-box').append('<div><strong>Tú:</strong> ' + userInput + '</div>');
+    
+    // Limpiar el input
+    $('#user-input').val('');
+    
+    // Enviar la pregunta al servidor
+    $.ajax({
+        url: '/chatbot',
+        type: 'post',
+        data: {
+            user_input: userInput
+        },
+        success: function(response) {
+            $('#chat-box').append('<div><strong>Chatbot:</strong> ' + response.response + '</div>');
+            
+            // Si la respuesta es sobre los periodos, mostrar un campo para ingresarlos
+            if (response.response.includes("¿Cuántos periodos deseas predecir")) {
+                $('#user-input').attr("placeholder", "Escribe el número de periodos...");
+                $('#user-input').off('keypress').on('keypress', function(e) {
+                    if (e.key === "Enter") {
+                        var periods = $('#user-input').val();
+                        
+                        // Verificar que el número de periodos sea válido
+                        if (isNaN(periods) || periods <= 0) {
+                            $('#chat-box').append('<div><strong>Chatbot:</strong> Por favor, ingresa un número válido de periodos.</div>');
+                            return;
+                        }
+
+                        // Enviar el número de periodos para hacer la predicción
+                        $.ajax({
+                            url: '/predict',
+                            type: 'post',
+                            data: {
+                                target_variable: response.response.split("para ")[1],  // Extraer la variable
+                                periods: periods
+                            },
+                            success: function(response) {
+                                // Mostrar los resultados de la predicción
+                                $('#chat-box').append('<div><strong>Predicción:</strong> ' + JSON.stringify(response.predictions) + '</div>');
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Desplazar el chat hacia abajo para mostrar el último mensaje
+            $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+        },
+        error: function() {
+            $('#chat-box').append('<div><strong>Chatbot:</strong> Hubo un error en el chatbot.</div>');
+        }
+    });
+}
+
+    </script>
 </body>
 </html>
