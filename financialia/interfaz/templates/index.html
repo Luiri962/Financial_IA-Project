@@ -20,103 +20,68 @@
             <button onclick="sendMessage()">Enviar</button>
         </div>
 
-        <form action="/predict" method="post" class="prediction-form">
-            <label for="target_variable">Variable a predecir</label>
-            <input type="text" name="target_variable" id="target_variable" placeholder="Ej. ^GSPC" required>
-
-            <label for="periods">Número de periodos</label>
-            <input type="number" name="periods" id="periods" placeholder="Ej. 7" required>
-
-            <button type="submit">Predecir</button>
-        </form>
-
-        {% if predictions %}
-            <h2>📊 Resultados</h2> 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Variable</th>
-                        <th>Retorno</th>
-                        <th>Precio</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for prediction in predictions %}
-                        <tr>
-                            <td>{{ prediction.date }}</td>
-                            <td>{{ prediction.target_variable.split(' ')[0] }}</td>
-                            <td>{{ prediction.return }}</td>
-                            <td>{{ prediction.price }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% endif %}
     </div>
 
     <script>
+    // Variable para almacenar el ID del cliente
+    var clientId = null;
+    
     function sendMessage() {
-    var userInput = $('#user-input').val();
-    
-    // Asegúrate de que el input no esté vacío
-    if (userInput.trim() === '') return;
-    
-    // Mostrar el mensaje del usuario en el chat
-    $('#chat-box').append('<div><strong>Tú:</strong> ' + userInput + '</div>');
-    
-    // Limpiar el input
-    $('#user-input').val('');
-    
-    // Enviar la pregunta al servidor
-    $.ajax({
-        url: '/chatbot',
-        type: 'post',
-        data: {
-            user_input: userInput
-        },
-        success: function(response) {
-            $('#chat-box').append('<div><strong>Chatbot:</strong> ' + response.response + '</div>');
-            
-            // Si la respuesta es sobre los periodos, mostrar un campo para ingresarlos
-            if (response.response.includes("¿Cuántos periodos deseas predecir")) {
-                $('#user-input').attr("placeholder", "Escribe el número de periodos...");
-                $('#user-input').off('keypress').on('keypress', function(e) {
-                    if (e.key === "Enter") {
-                        var periods = $('#user-input').val();
-                        
-                        // Verificar que el número de periodos sea válido
-                        if (isNaN(periods) || periods <= 0) {
-                            $('#chat-box').append('<div><strong>Chatbot:</strong> Por favor, ingresa un número válido de periodos.</div>');
-                            return;
-                        }
-
-                        // Enviar el número de periodos para hacer la predicción
-                        $.ajax({
-                            url: '/predict',
-                            type: 'post',
-                            data: {
-                                target_variable: response.response.split("para ")[1],  // Extraer la variable
-                                periods: periods
-                            },
-                            success: function(response) {
-                                // Mostrar los resultados de la predicción
-                                $('#chat-box').append('<div><strong>Predicción:</strong> ' + JSON.stringify(response.predictions) + '</div>');
-                            }
-                        });
-                    }
-                });
+        var userInput = $('#user-input').val();
+        
+        if (userInput.trim() === '') return;
+        
+        // Mostrar el mensaje del usuario en el chat
+        $('#chat-box').append('<div><strong>Tú:</strong> ' + userInput + '</div>');
+        
+        // Desplazar el chat hacia abajo para mostrar el último mensaje
+        $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+        
+        // Limpiar el input
+        $('#user-input').val('');
+        
+        // Mostrar indicador de carga
+        $('#chat-box').append('<div id="loading"><em>Chatbot está escribiendo...</em></div>');
+        
+        // Enviar la pregunta al servidor
+        $.ajax({
+            url: '/chatbot',
+            type: 'post',
+            data: {
+                user_input: userInput,
+                client_id: clientId
+            },
+            success: function(response) {
+                // Eliminar indicador de carga
+                $('#loading').remove();
+                
+                // Guardar el ID del cliente para mantener el estado de la conversación
+                if (response.client_id) {
+                    clientId = response.client_id;
+                }
+                
+                // Mostrar la respuesta del chatbot
+                $('#chat-box').append('<div><strong>Chatbot:</strong> ' + response.response + '</div>');
+                
+                // Desplazar el chat hacia abajo para mostrar el último mensaje
+                $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+            },
+            error: function() {
+                // Eliminar indicador de carga
+                $('#loading').remove();
+                
+                $('#chat-box').append('<div><strong>Chatbot:</strong> Hubo un error en el chatbot.</div>');
             }
-            
-            // Desplazar el chat hacia abajo para mostrar el último mensaje
-            $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
-        },
-        error: function() {
-            $('#chat-box').append('<div><strong>Chatbot:</strong> Hubo un error en el chatbot.</div>');
+        });
+    }
+    
+    // Agregar evento para enviar mensaje con Enter
+    $('#user-input').keypress(function(e) {
+        if (e.which == 13) {  
+            sendMessage();
+            return false; 
         }
     });
-}
-
     </script>
 </body>
 </html>

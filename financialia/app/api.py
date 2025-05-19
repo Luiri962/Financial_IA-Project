@@ -10,6 +10,15 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
 from chatbot.chatbot import ChatbotFinanzas
+import uuid
+import nltk
+
+nltk.download('punkt', quiet=True)
+nltk.download('wordnet', quiet=True)
+nltk.download('omw-1.4', quiet=True)
+nltk.download('punkt_tab', quiet=True)
+
+user_state = {} # Diccionario global para guardar el estado por cliente
 
 app = FastAPI()
 
@@ -19,28 +28,23 @@ templates = Jinja2Templates(directory="../interfaz/templates")
 
 
 @app.post("/chatbot", response_class=JSONResponse)
-async def chat(request: Request, user_input: str = Form(...)):
-    try:
-        data = chatbot.cargar_dataset()
-        if data is None:
-            return JSONResponse(content={"error": "Error al cargar el dataset"}, status_code=500)
+async def chat(user_input: str = Form(...), client_id: str = Form(None)):
+    global user_state
 
-        # Si la pregunta es sobre el retorno de S&P500 o alguna de las acciones
-        if chatbot.is_sp500_question(user_input) or chatbot.is_action_question(user_input):
-            return JSONResponse(content={"response": "¿Cuántos periodos deseas predecir?"})
+    if client_id is None:
+        client_id = str(uuid.uuid4())
 
-        # Encontrar la mejor coincidencia en el dataset para otras preguntas
-        best_match_idx, _ = chatbot.find_best_match(user_input, data['pregunta'])
-        
-        if best_match_idx is None:
-            return JSONResponse(content={"response": "Lo siento, no tengo una respuesta para eso."}, status_code=400)
-        
-        respuesta = data.iloc[best_match_idx]['respuesta']
-        return JSONResponse(content={"response": respuesta})
+    state = user_state.get(client_id, {})
 
-    except Exception as e:
-        logger.error(f"Error en /chatbot: {e}")
-        return JSONResponse(content={"response": "Hubo un error en el chatbot."}, status_code=500)
+    dataset = chatbot.cargar_dataset()
+    if dataset is None:
+        return JSONResponse(content={"error": "Error al cargar el dataset"}, status_code=500)
+
+    respuesta, nuevo_estado = await chatbot.handle_conversation(user_input, state, dataset)
+    user_state[client_id] = nuevo_estado
+
+    return JSONResponse(content={"response": respuesta, "client_id": client_id})
+
 
 @app.post("/predict", response_class=HTMLResponse)
 async def predict(request: Request, target_variable: str = Form(...), periods: int = Form(...)):

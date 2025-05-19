@@ -84,6 +84,8 @@ class ModelService:
     
     async def make_predictions(self,target_variable, periods):
         
+        periods = int(periods) if isinstance(periods, str) else periods
+        
         model_instance, _ = self.load_trained_model()
         
         model_instance.target_variable = target_variable
