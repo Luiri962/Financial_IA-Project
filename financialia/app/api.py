@@ -18,7 +18,7 @@ nltk.download('wordnet', quiet=True)
 nltk.download('omw-1.4', quiet=True)
 nltk.download('punkt_tab', quiet=True)
 
-user_state = {} # Diccionario global para guardar el estado por cliente
+user_state = {}
 
 app = FastAPI()
 
@@ -35,27 +35,20 @@ async def chat(user_input: str = Form(...), client_id: str = Form(None)):
         client_id = str(uuid.uuid4())
 
     state = user_state.get(client_id, {})
-
+    
     dataset = chatbot.cargar_dataset()
     if dataset is None:
         return JSONResponse(content={"error": "Error al cargar el dataset"}, status_code=500)
 
-    respuesta, nuevo_estado = await chatbot.handle_conversation(user_input, state, dataset)
+    respuesta, nuevo_estado, datos = await chatbot.handle_conversation(user_input, state, dataset)
     user_state[client_id] = nuevo_estado
 
-    return JSONResponse(content={"response": respuesta, "client_id": client_id})
+    content = {"response": respuesta, "client_id": client_id}
+    if datos:
+        content.update(datos)
 
+    return JSONResponse(content=content)
 
-@app.post("/predict", response_class=HTMLResponse)
-async def predict(request: Request, target_variable: str = Form(...), periods: int = Form(...)):
-    try:
-        predictions = await ModelService().make_predictions(target_variable=target_variable, periods=periods)
-
-        return templates.TemplateResponse("index.html", {"request": request, "predictions": predictions})
-
-    except Exception as e:
-        logger.error(f"Error en /predict: {e}")
-        raise HTTPException(status_code=500, detail="Error al realizar la predicción")
     
     
 @app.get("/", response_class=HTMLResponse)

@@ -1,87 +1,90 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Financialia</title>
-    <link rel="stylesheet" href="/static/style.css?v=2">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Financialia</title>
+  <link rel="stylesheet" href="/static/style.css?v=3" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <div class="overlay"></div>
-    <div class="container">
-        <h1>📈 Predicción de los Retornos de Acciones del S&P 500</h1>
-
-        <div class="chat-container">
-            <div id="chat-box" style="height: 300px; overflow-y: scroll;">
-                <!-- Las respuestas del chatbot aparecerán aquí -->
-            </div>
-            <input type="text" id="user-input" placeholder="Escribe tu pregunta...">
-            <button onclick="sendMessage()">Enviar</button>
+  <div class="container">
+    <h1>📈 Predicción de los Retornos de Acciones del S&P 500</h1>
+    <div class="main-content">
+      <section class="chat-section">
+        <div id="chat-box" class="chat-box"></div>
+        <div class="input-area">
+          <input type="text" id="user-input" placeholder="Escribe tu pregunta..." autocomplete="off" />
+          <button onclick="sendMessage()">Enviar</button>
         </div>
+      </section>
 
+      <section class="predictions-section">
+        <h2>📊 Predicciones</h2>
+        <div id="predictions-table-container">
+          <p>No hay predicciones aún.</p>
+        </div>
+      </section>
     </div>
+  </div>
 
-    <script>
-    // Variable para almacenar el ID del cliente
+  <script>
     var clientId = null;
-    
+
     function sendMessage() {
-        var userInput = $('#user-input').val();
-        
-        if (userInput.trim() === '') return;
-        
-        // Mostrar el mensaje del usuario en el chat
-        $('#chat-box').append('<div><strong>Tú:</strong> ' + userInput + '</div>');
-        
-        // Desplazar el chat hacia abajo para mostrar el último mensaje
-        $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
-        
-        // Limpiar el input
-        $('#user-input').val('');
-        
-        // Mostrar indicador de carga
-        $('#chat-box').append('<div id="loading"><em>Chatbot está escribiendo...</em></div>');
-        
-        // Enviar la pregunta al servidor
-        $.ajax({
-            url: '/chatbot',
-            type: 'post',
-            data: {
-                user_input: userInput,
-                client_id: clientId
-            },
-            success: function(response) {
-                // Eliminar indicador de carga
-                $('#loading').remove();
-                
-                // Guardar el ID del cliente para mantener el estado de la conversación
-                if (response.client_id) {
-                    clientId = response.client_id;
-                }
-                
-                // Mostrar la respuesta del chatbot
-                $('#chat-box').append('<div><strong>Chatbot:</strong> ' + response.response + '</div>');
-                
-                // Desplazar el chat hacia abajo para mostrar el último mensaje
-                $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
-            },
-            error: function() {
-                // Eliminar indicador de carga
-                $('#loading').remove();
-                
-                $('#chat-box').append('<div><strong>Chatbot:</strong> Hubo un error en el chatbot.</div>');
-            }
-        });
-    }
-    
-    // Agregar evento para enviar mensaje con Enter
-    $('#user-input').keypress(function(e) {
-        if (e.which == 13) {  
-            sendMessage();
-            return false; 
+      var userInput = $('#user-input').val();
+
+      if (userInput.trim() === '') return;
+
+      // Mostrar mensaje usuario en burbuja
+      $('#chat-box').append('<div class="message user">' + userInput + '</div>');
+      $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+      $('#user-input').val('');
+
+      $('#chat-box').append('<div id="loading"><em>Chatbot está escribiendo...</em></div>');
+
+      $.ajax({
+        url: '/chatbot',
+        type: 'post',
+        data: {
+          user_input: userInput,
+          client_id: clientId
+        },
+        success: function(response) {
+          $('#loading').remove();
+
+          if (response.client_id) {
+            clientId = response.client_id;
+          }
+
+          // Mostrar mensaje bot en burbuja
+          $('#chat-box').append('<div class="message bot">' + response.response + '</div>');
+
+          // Mostrar tabla predicciones o texto si llegan predicciones
+          if (response.predictions) {
+            let html = "<table><thead><tr><th>Fecha</th><th>Variable</th><th>Precio</th><th>Retorno</th></tr></thead><tbody>";
+            response.predictions.forEach(p => {
+              html += `<tr><td>${p.date}</td><td>${p.variable}</td><td>${p.price.toFixed(2)}</td><td>${p.return.toFixed(4)}</td></tr>`;
+            });
+            html += "</tbody></table>";
+            $('#predictions-table-container').html(html);
+          }
+
+          $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+        },
+        error: function() {
+          $('#loading').remove();
+          $('#chat-box').append('<div class="message bot">Hubo un error en el chatbot.</div>');
         }
+      });
+    }
+
+    $('#user-input').keypress(function(e) {
+      if (e.which == 13) {
+        sendMessage();
+        return false;
+      }
     });
-    </script>
+  </script>
 </body>
 </html>

@@ -20,8 +20,6 @@ class ChatbotFinanzas:
 
     def cargar_dataset(self):
         try:
-            #script_dir = os.path.dirname(os.path.abspath(__file__))
-            #excel_path = os.path.join(script_dir, file_path)
             excel_path = "../chatbot/Preguntas_Chatbot_Financiero.xlsx"
         
             df = pd.read_excel(excel_path)
@@ -113,34 +111,30 @@ class ChatbotFinanzas:
         
         return best_match_idx, similarity_score
 
-    def is_sp500_question(self, pregunta):
+    def is_prediction_question(self, pregunta):
         pregunta_clean = re.sub(r'[¿?¡!.,;:()]', '', pregunta.lower())
+       
         keywords_sp500 = ["sp500", "s&p500", "s&p 500", "sp 500"]
-        keywords_retorno = ["retorno", "rendimiento", "ganancia", "beneficio", "predicción", "predicciones", "pronóstico"]
-        contains_sp500 = any(keyword in pregunta_clean.replace(" ", "") for keyword in keywords_sp500)
-        contains_retorno = any(keyword in pregunta_clean for keyword in keywords_retorno)
         
-        return contains_sp500 and contains_retorno
-    
-    def is_action_question(self, pregunta):
-        pregunta_clean = re.sub(r'[¿?¡!.,;:()]', '', pregunta.lower())
         acciones = ["aapl", "apple", "goog", "google", "amzn", "amazon", "msft", "microsoft", "tsla", "tesla"]
         
-        return any(action in pregunta_clean for action in acciones)
+        keywords_retorno = ["retornos", "retorno", "rendimiento", "rendimientos", "ganancia", "ganancias", "beneficio", "beneficios", "predicción", "predicciones", "pronóstico", "pronósticos", "pronostico", "pronosticos"]
+        contains_sp500 = any(keyword in pregunta_clean.replace(" ", "") for keyword in keywords_sp500)
+        contains_accion = any(action in pregunta_clean for action in acciones)
+        contains_retorno = any(keyword in pregunta_clean for keyword in keywords_retorno)
+       
+        return (contains_sp500 or contains_accion) and contains_retorno
+
     
-    async def handle_conversation(self, user_input: str, state: dict, dataset) -> tuple[str, dict]:
-        print(f"Entrada recibida: '{user_input}'")
-        print(f"Estado actual: {state}")
-        
-        # Si es una pregunta sobre S&P500
-        if self.is_sp500_question(user_input):
+    async def handle_conversation(self, user_input: str, state: dict, dataset) -> tuple[str, dict, dict]:
+
+        if self.is_prediction_question(user_input):
             if "target_variable" not in state:
-                state["target_variable"] = "^GSPC"
-                return "¿Cuántos periodos deseas predecir?", state
-            
-        # Si es una pregunta sobre acciones específicas
-        elif self.is_action_question(user_input):
-            if "target_variable" not in state:
+                
+                if "sp500" in user_input.lower() or "s&p500" in user_input.lower():
+                    state["target_variable"] = "^GSPC"
+                    return "¿Cuántos periodos deseas predecir?", state, None
+                
                 u = user_input.lower()
                 if "apple" in u or "aapl" in u:
                     state["target_variable"] = "AAPL"
@@ -153,37 +147,38 @@ class ChatbotFinanzas:
                 elif "tesla" in u or "tsla" in u:
                     state["target_variable"] = "TSLA"
                 else:
-                    return "Lo siento, no reconozco esa acción.", state
-                return f"¿Cuántos periodos deseas predecir para {state['target_variable']}?", state
-            
-        # Si ya tenemos la variable objetivo y estamos esperando el número de períodos
+                    return "Lo siento, no reconozco esa acción.", state, None
+                
+                return f"¿Cuántos periodos deseas predecir para {state['target_variable']}?", state, None
+
+
         if "target_variable" in state:
-            # Verificar si la entrada del usuario es un número
             if user_input.isdigit():
-                # Nota: NO convertimos a entero aquí, lo haremos en ModelService
-                periods = user_input  
+                periods = int(user_input)
                 print(f"Número de períodos: {periods} (tipo: {type(periods)})")
                 print(f"Estado actual: {state}")
                 try:
-                    predictions = await ModelService().make_predictions(
-                        target_variable=state["target_variable"], 
-                        periods=periods
-                    )
-                    respuesta = f"Predicción para {state['target_variable']} durante {periods} periodos:\n"
+                    predictions = await ModelService().make_predictions(target_variable=state["target_variable"], periods=periods)
+                   
                     for p in predictions:
-                        respuesta += f"{p['date']}: Precio {p['price']}, Retorno {p['return']}\n"
-                    state.clear()  # Limpiamos el estado después de completar la predicción
-                    return respuesta, state
-                except Exception as e:
-                    print(f"Error al generar predicción: {e}")
-                    return f"Hubo un error al generar la predicción: {str(e)}", state
-            else:
-                return "Por favor, ingresa un número válido de periodos.", state
+                        p['variable'] = state["target_variable"]
+                
+                    target_var = state["target_variable"]
+                    state.clear() 
 
-        # Si no es ninguna de las anteriores, buscar en el dataset
-        best_match_idx, similarity = self.find_best_match(user_input, dataset['pregunta'])
+                    mensaje = f"Aquí tienes las predicciones para {target_var} durante {periods} periodos:"
+                
+                    return mensaje, state, {"predictions": predictions}
+                except Exception as e:
+                    return "Hubo un error al generar la predicción.", state, None
+            else:
+                return "Por favor, ingresa un número válido de periodos.", state, None
+
+        best_match_idx, _ = self.find_best_match(user_input, dataset['pregunta'])
         if best_match_idx is None:
-            return "Lo siento, no tengo una respuesta para esa pregunta.", state
-        
+            return "Lo siento, no tengo una respuesta para esa pregunta.", state, None
+
         respuesta = dataset.iloc[best_match_idx]['respuesta']
-        return respuesta, state
+        return respuesta, state, None
+
+
